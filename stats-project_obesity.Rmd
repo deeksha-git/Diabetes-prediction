@@ -1,0 +1,185 @@
+---
+title: "Prediction of Obesity using Random forest Algorithm"
+author: "Deeksha Remella Venkata"
+date: "2024-04-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+library(reshape2)
+library(caret)
+
+```
+
+```{r}
+ObesityDataSet <- read_excel("C:/Users/deeks/Downloads/prob-and-stats/project/ObesityDataSet.xlsx")
+
+```
+
+```{r}
+#graphs of age, height and weight:
+
+age <- ObesityDataSet %>% ggplot(aes(Age)) + geom_histogram(fill = "pink", color = "black", bins = 30) + labs(title = "Distribution of age over dataset", x = "Age (years)", y = "sample size")
+
+height <- ObesityDataSet %>% ggplot(aes(Height)) + geom_histogram(fill = "orange", color = "black", bins = 30) + labs(title = "Distribution of height over dataset", x = "Height (metres)", y = "sample size")
+
+weight <- ObesityDataSet %>% ggplot(aes(Weight)) + geom_histogram(fill = "purple", color = "black", bins = 30) + labs(title = "Distribution of weight over dataset", x = "Weight (kgs)", y = "sample size")
+
+```
+
+```{r}
+#modifying dataset
+
+ObesityDataSet_edited <- ObesityDataSet %>% mutate(Gender = recode(Gender, "Female" = 0, "Male" = 1),
+                                                   family_history_with_overweight = recode(family_history_with_overweight, "no" = 0, "yes" = 1),
+                                                   FAVC = recode(FAVC, "no" = 0, "yes" = 1),
+                                                   CAEC = recode(CAEC, "no" = 0, "Sometimes" = 1, "Frequently" = 2, "Always" = 3),
+                                                   SMOKE = recode(SMOKE, "no" = 0, "yes" = 1),
+                                                   SCC = recode(SCC, "no" = 0, "yes" = 1),
+                                                   CALC = recode(CALC, "no" = 0, "Sometimes" = 1, "Frequently" = 2, "Always" = 3),
+                                                   MTRANS = recode(MTRANS, "Public_Transportation" = 0, "Walking" = 1, "Automobile" = 2, "Motorbike" = 3, "Bike" = 4),
+                                                   NObeyesdad = recode(NObeyesdad, "Insufficient_Weight" = 0, "Normal_Weight" = 1, "Overweight_Level_I" = 2, "Overweight_Level_II" = 3, "Obesity_Type_I" = 4, "Obesity_Type_II" = 5, "Obesity_Type_III" = 6))
+
+
+view(ObesityDataSet_edited)
+
+knitr::kable(head(ObesityDataSet_edited)) %>% kable_styling(latex_options = c("striped","scale_down","hold_position"))
+```
+
+```{r}
+pearson <- ObesityDataSet_edited %>% summarise(Parameter = c("Gender", "Age", "Height", "Weight", "family history", "FAVC", "FCVC", "NCP", "CAEC", "Smoking", "Water intake", "SCC", "FAF", "TUE", "CALC", "MTRANS"), "Correlation with obesity" = c(cor(Gender, NObeyesdad, method = "pearson"),
+cor(Age, NObeyesdad, method = "pearson"),
+cor(Height, NObeyesdad, method = "pearson"),
+                                                 cor(Weight,NObeyesdad, method = "pearson"),
+                                                 cor(family_history_with_overweight,NObeyesdad,method = "pearson"),
+                                                 cor(FAVC,NObeyesdad,method = "pearson"),
+                                                 cor(FCVC, NObeyesdad, method = "pearson"),
+                                                 cor(NCP,NObeyesdad,method = "pearson"),
+                                                 cor(CAEC,NObeyesdad, method = "pearson"),
+                                                 cor(SMOKE,NObeyesdad,method = "pearson"),
+                                                 cor(CH2O,NObeyesdad,method = "pearson"),
+                                                 cor(SCC,NObeyesdad,method = "pearson"),
+                                                 cor(FAF,NObeyesdad,method = "pearson"),
+                                                 cor(TUE,NObeyesdad,method = "pearson"),
+                                                 cor(CALC,NObeyesdad,method = "pearson"),
+                                                 cor(MTRANS,NObeyesdad,method = "pearson")))
+
+pearson <- knitr::kable(pearson) %>% kable_styling(latex_options = c("striped","scale_down","hold_position"))
+  
+```
+
+
+
+```{r}
+#get correlation heatmap
+
+cormat <- round(cor(ObesityDataSet_edited), 2)
+
+# Get lower triangle of the correlation matrix
+  get_lower_tri<-function(cormat){
+    cormat[upper.tri(cormat)] <- NA
+    return(cormat)
+  }
+
+# Get upper triangle of the correlation matrix
+  get_upper_tri <- function(cormat){
+    cormat[lower.tri(cormat)]<- NA
+    return(cormat)
+  }
+  
+  upper_tri <- get_upper_tri(cormat)
+upper_tri
+
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+# Heatmap
+
+heatmap <- ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "darkred", high = "darkblue", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+ theme(axis.text.x = element_text(angle = 90, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed() + labs(title = "Heatmap of correlations between all variables", x = "Column 2", y = "Column 1")
+
+heatmap
+```
+```{r}
+#removing NCP and SMOKE variables because they have 0 correlation with obesity:
+ObesityDataSet_edited <- ObesityDataSet_edited %>% select(-NCP, -SMOKE)
+view(ObesityDataSet_edited)
+```
+
+```{r}
+
+#create vector "y" that has our target variable:
+y <- ObesityDataSet_edited$NObeyesdad
+
+ObesityDataSet_edited_2 <- ObesityDataSet_edited %>% subset(select = -c(NObeyesdad))
+
+#creation of test and training data
+# create test index
+test_index <- createDataPartition(y, times = 1, p = 0.20, list = FALSE)
+
+# test set of obesity
+test_ob <- ObesityDataSet_edited_2[test_index,]
+
+# test set of y
+test_y <- y[test_index]
+
+# train set of obesity
+train_ob <- ObesityDataSet_edited_2[-test_index,]
+
+# train set of y
+train_y <- y[-test_index]
+
+#converting vectors into factors:
+y <- as.factor(y)
+train_y <- as.factor(train_y)
+test_y <- as.factor(test_y)
+
+#converting test and train sets into dataframes
+train_ob <- as.data.frame(train_ob)
+test_ob <- as.data.frame(test_ob)
+
+```
+
+
+```{r}
+#fitting models
+
+#rf
+set.seed(7, sample.kind = "Rounding")
+tune_rf <- data.frame(mtry = c(3,9))
+train_rf <- train(train_ob, train_y, method = "rf",tuneGrid = tune_rf,importance = TRUE)
+
+best_rf <- train_rf$bestTune
+
+rf_preds <- predict(train_rf, newdata= test_ob)
+rf_accuracy <- mean(rf_preds == test_y)
+
+rf_accuracy
+
+```
+
+```{r}
+
+#look for accuracy
+confusionMatrix(rf_preds, test_y)
+
+#feature importance
+library(randomForest)
+varImpPlot(train_rf$finalModel)
+
+```
+
