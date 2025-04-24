@@ -1,5 +1,5 @@
 # Prediction of Obesity using Random forest algorithm
-This project studies the efficiency of Random Forest for predicting Obesity in patients. 
+This project studies the efficiency of Random Forest for predicting Obesity in patients using information from individuals from Columbia, Peru and Mexico. 
 
 Obesity is one of the most common medical conditions that over 13% of the world's population struggle with. Although current Machine Learning techniques have advanced towards applying Deep learning and Explainable AI in early obesity onset prediction, traditional ML models such as Random Forest still find strong application to obesity prediction due to their robust nature and much easily explainable decision-making, which is a current concern with black box models for doctors and physicians. 
 
@@ -12,4 +12,4 @@ Therefore, the performance of Random Forest to classify obesity type has been st
 6. Obesity_Type_II       
 7. Obesity_Type_III    
   
-This project was executed in RStudio 4.3.2 employing several libraries for preprocessing, visualization, splitting and prediction of data points. 
+This project was executed in RStudio 4.3.2 employing several libraries for preprocessing, visualization, splitting and prediction of data points. The original data source can be found in [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/544/estimation+of+obesity+levels+based+on+eating+habits+and+physical+condition) and the detailed publication in [Pubmed](https://pubmed.ncbi.nlm.nih.gov/31467953/). 
